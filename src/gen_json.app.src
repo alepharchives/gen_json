@@ -1,0 +1,15 @@
+{application, gen_json,
+[
+    {description, "generic json utlities for jsx"},
+    {vsn, "0.9"},
+    {modules, [
+        gen_json
+    ]},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        jsx
+    ]},
+    {env, []}
+]}.
