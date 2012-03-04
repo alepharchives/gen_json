@@ -64,17 +64,122 @@ parser(Mod, Args) -> parser(Mod, Args, []).
 parser(Mod, Args, Opts) when is_atom(Mod), is_list(Opts) ->
     case proplists:get_value(parser, Opts, auto) of
         auto ->
-            fun(Input) when is_list(Input) -> (jsx_encoder:encoder(Mod, Mod:init(Args), Opts))(Input)
-                ; (Input) when is_binary(Input) -> (jsx_decoder:decoder(Mod, Mod:init(Args), Opts))(Input)
+            fun(Input) when is_list(Input) -> (jsx:encoder(Mod, Mod:init(Args), Opts))(Input)
+                ; (Input) when is_binary(Input) -> (jsx:decoder(Mod, Mod:init(Args), Opts))(Input)
             end
         ; encoder ->
-            fun(Input) -> (jsx_encoder:encoder(Mod, Mod:init(Args), Opts))(Input) end
+            fun(Input) -> (jsx:encoder(Mod, Mod:init(Args), Opts))(Input) end
         ; decoder ->
-            fun(Input) -> (jsx_decoder:decoder(Mod, Mod:init(Args), Opts))(Input) end
+            fun(Input) -> (jsx:decoder(Mod, Mod:init(Args), Opts))(Input) end
     end.
 
 
+handle_event(end_json, {F, undefined}) -> F(end_json), ok;
+handle_event(end_json, {F, State}) -> F(end_json, State);
 handle_event(Event, {F, undefined}) -> F(Event), {F, undefined};
 handle_event(Event, {F, State}) -> {F, F(Event, State)}.
 
 init(State) -> State.
+
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+fake_xxcoder(Expected) ->
+    F = fun(Mod, State, _) ->
+        fun(_) ->
+            lists:foldl(
+                fun(Event, Acc) -> Mod:handle_event(Event, Acc) end,
+                State,
+                Expected
+            )
+        end
+    end,
+    meck:expect(jsx, decoder, F),
+    meck:expect(jsx, encoder, F).
+
+
+anon_one() -> fun(Event) -> self() ! Event end.
+
+anon_two() ->
+    fun(end_json, Acc) -> lists:reverse([end_json] ++ Acc);
+        (Event, Acc) -> [Event] ++ Acc
+    end.
+
+receive_all() -> receive_all([]).
+
+receive_all(Acc) ->
+    receive
+        X -> receive_all([X] ++ Acc)
+    after
+        60 -> lists:reverse(Acc)
+    end.
+
+
+anon_test_() ->
+    Events = [
+        start_array,
+        {integer, 1},
+        {literal, true},
+        end_array,
+        end_json
+    ],
+    {foreach,
+        fun() ->
+            meck:new(jsx),
+            fake_xxcoder(Events) 
+        end,
+        fun(_) ->
+            ?assert(meck:validate(jsx)),
+            meck:unload(jsx)
+        end,
+        [
+            {"arity 1 anon fun", ?_assertEqual(
+                begin
+                    (parser(anon_one()))(<<"[1, true]">>),
+                    Events
+                end,
+                receive_all()
+            )},
+            {"arity 2 anon fun", ?_assertEqual(
+                (parser({anon_two(), []}))(<<"[1, true]">>),
+                Events
+            )}
+        ]
+    }.
+
+external_test_() ->
+    Events = [
+        start_array,
+        {integer, 1},
+        {literal, true},
+        end_array,
+        end_json
+    ],
+    {foreach,
+        fun() ->
+            meck:new(jsx),
+            fake_xxcoder(Events),
+            meck:new(handler),
+            meck:expect(handler, handle_event, fun(end_json, Acc) ->
+                        lists:reverse([end_json] ++ Acc);
+                    (Event, Acc) -> [Event] ++ Acc
+                end
+            ),
+            meck:expect(handler, init, fun(State) -> State end)
+        end,
+        fun(_) ->
+            ?assert(meck:validate(jsx)),
+            ?assert(meck:validate(handler)),
+            meck:unload(jsx),
+            meck:unload(handler)
+        end,
+        [
+            {"external handler", ?_assertEqual(
+                (parser(handler, []))(<<"[1, true]">>),
+                Events
+            )}
+        ]
+    }.
+
+-endif.
