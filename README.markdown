@@ -68,8 +68,8 @@ types:
     - `start_array`
     - `end_array`
     - `end_json`
-    - `{key, list()}`
-    - `{string, list()}`
+    - `{key, binary()}`
+    - `{string, binary()}`
     - `{integer, integer()}`
     - `{float, float()}`
     - `{literal, true}`
