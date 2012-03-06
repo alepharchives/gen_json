@@ -6,7 +6,7 @@ copyright 2012 alisdair sullivan
 
 gen_json is released under the terms of the [MIT][MIT] license
 
-to build gen_json, `make` or `./rebar compile`
+to build gen_json, use `make`. to run the test suite, use `make test`.
 
 
 ## api ##
