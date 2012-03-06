@@ -64,13 +64,13 @@ parser(Mod, Args) -> parser(Mod, Args, []).
 parser(Mod, Args, Opts) when is_atom(Mod), is_list(Opts) ->
     case proplists:get_value(parser, Opts, auto) of
         auto ->
-            fun(Input) when is_list(Input) -> (jsx:encoder(Mod, Mod:init(Args), Opts))(Input)
-                ; (Input) when is_binary(Input) -> (jsx:decoder(Mod, Mod:init(Args), Opts))(Input)
+            fun(Input) when is_list(Input) -> (jsx:encoder(Mod, Args, Opts))(Input)
+                ; (Input) when is_binary(Input) -> (jsx:decoder(Mod, Args, Opts))(Input)
             end
         ; encoder ->
-            fun(Input) -> (jsx:encoder(Mod, Mod:init(Args), Opts))(Input) end
+            fun(Input) -> (jsx:encoder(Mod, Args, Opts))(Input) end
         ; decoder ->
-            fun(Input) -> (jsx:decoder(Mod, Mod:init(Args), Opts))(Input) end
+            fun(Input) -> (jsx:decoder(Mod, Args, Opts))(Input) end
     end.
 
 
